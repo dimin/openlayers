@@ -70,7 +70,7 @@ exports.publish = function(data, opts) {
     } else if (doc.kind == 'typedef' || doc.isEnum === true) {
       typedefs.push({
         name: doc.longname,
-        types: getTypes(doc.type.names)
+        types: getTypes(doc.type ? doc.type.names : [])
       });
     } else {
       const symbol = {
@@ -95,7 +95,7 @@ exports.publish = function(data, opts) {
             name: param.name
           };
           params.push(paramInfo);
-          paramInfo.types = getTypes(param.type.names);
+          paramInfo.types = getTypes(param.type ? param.type.names : []);
           if (typeof param.variable == 'boolean') {
             paramInfo.variable = param.variable;
           }
@@ -110,7 +110,7 @@ exports.publish = function(data, opts) {
       }
       if (doc.returns) {
         symbol.returns = {
-          types: getTypes(doc.returns[0].type.names)
+          types: getTypes(doc.returns[0].type ? doc.returns[0].type.names : [])
         };
         if (typeof doc.returns[0].nullable == 'boolean') {
           symbol.returns.nullable = doc.returns[0].nullable;

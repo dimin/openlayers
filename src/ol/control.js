@@ -11,4 +11,5 @@ export {default as ScaleLine} from './control/ScaleLine.js';
 export {default as Zoom} from './control/Zoom.js';
 export {default as ZoomSlider} from './control/ZoomSlider.js';
 export {default as ZoomToExtent} from './control/ZoomToExtent.js';
+export {default as VQMousePosition} from './control/VQMousePosition.js';
 export {defaults} from './control/util.js';
