@@ -347,14 +347,10 @@ class ViQi extends TileImage {
     };
   }
 
-  setUrl(url) {
+  setUrl(url, key) {
     const urls = expandUrl(url);
     const tileUrlFunction = createFromTileUrlFunctions(urls.map(this.myCreateFromTemplate));
-    this.setTileUrlFunction(tileUrlFunction, this.key);
-  }
-
-  setKey(key) {
-    this.key = key;
+    this.setTileUrlFunction(tileUrlFunction, key || this.key_);
   }
 
   argmin(a) {
