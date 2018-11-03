@@ -59,21 +59,50 @@ export class ViQiTile extends ImageTile {
     if (this.viqiImage_) {
       return this.viqiImage_;
     }
-    const image = super.getImage();
+    let image = super.getImage();
     if (this.state == TileState.LOADED) {
-      const tileSize = this.tileSize_;
-      if (image.width == tileSize[0] && image.height == tileSize[1]) {
-        this.viqiImage_ = image;
-        return image;
-      } else {
-        const context = createCanvasContext2D(tileSize[0], tileSize[1]);
-        context.drawImage(image, 0, 0);
-        this.viqiImage_ = context.canvas;
-        return context.canvas;
+      //const tileSize = this.tileSize_;
+      const tileSize = this.getBQTileSize(this.tileCoord);
+      //if (image.width == tileSize[0] && image.height == tileSize[1]) {
+      //  this.viqiImage_ = image;
+      //  return image;
+      //} else {
+      const context = createCanvasContext2D(this.tileSize_[0], this.tileSize_[1]);
+      if (this.image_data) {// && !this.raw_data && !this.buffer) {
+        // not receiving RAW data buffer but an image instead
+        // used for 8 bit cases, need to add proper enhancement here
+        context.drawImage(this.image_data, 0, 0);
+        this.raw_data = context.getImageData(0, 0, tileSize[0], tileSize[1]).data;
+        this.buffer = this.render_options.processBuffer(this.raw_data, tileSize);
+        this.image_data = undefined;
       }
+
+      if (this.raw_data && !this.buffer) {
+        this.buffer = this.render_options.processBuffer(this.raw_data, tileSize);
+        if (!this.buffer) {
+          return image;
+        }
+        this.raw_data = undefined;
+      }
+
+      tileSize[0] = this.buffer.width;
+      tileSize[1] = this.buffer.height;
+
+      //if (this.buffer.length != tileSize[0]*tileSize[1]*this.render_options.samples) return image;
+      image = context.getImageData(0, 0, tileSize[0], tileSize[1]);
+      this.render_options.renderBuffer(image, this.buffer, tileSize);
+      context.putImageData(image, 0, 0);
+
+      this.viqiImage_ = context.canvas;
+      return context.canvas;
+      //}
     } else {
       return image;
     }
+  }
+
+  clearRenderCache() {
+    this.viqiImage_ = undefined;
   }
 
 }
@@ -178,8 +207,10 @@ class ViQi extends TileImage {
 
     const scales = [];
     let scale = 1.0;
+    const sizes = [];
     for (let i = 0; i < resolutions.length; ++i) {
       scales.push(scale);
+      sizes.push([Math.floor(imageWidth * scale), Math.floor(imageHeight * scale)]);
       scale = scale / 2.0;
     }
     scales.reverse();
@@ -233,6 +264,50 @@ class ViQi extends TileImage {
 
     const tileUrlFunction = createFromTileUrlFunctions(urls.map(createFromTemplate));
 
+    const getBQTileSize = function(tileCoord) {
+      const z = num_resolutions - (tileCoord[0] + 1);
+      const x = tileCoord[1] * viqi_tileSize;
+      const y = (-tileCoord[2] - 1) * viqi_tileSize;
+      const sz = sizes[z];
+      const w = Math.min(viqi_tileSize, sz[0] - x);
+      const h = Math.min(viqi_tileSize, sz[1] - y);
+      return [w, h];
+    };
+
+    const tileLoadFunction = function(tile, src) {
+      const xhr = new XMLHttpRequest();
+      if (options.render_options.use_raw_buffer === true) {
+        xhr.responseType = 'arraybuffer';
+      } else {
+        xhr.responseType = 'blob';
+      }
+      xhr.addEventListener('loadend', function(evt) {
+        const data = this.response;
+        if (data !== undefined) {
+          if (options.render_options.use_raw_buffer === true) {
+            tile.raw_data = data;
+          } else {
+            tile.image_data = new Image();
+            tile.image_data.src = URL.createObjectURL(data);
+            //tile.getImage().src = URL.createObjectURL(data);
+          }
+
+          tile.render_options = options.render_options;
+          tile.getBQTileSize = getBQTileSize;
+
+          tile.setState(TileState.LOADED);
+          tile.getImage();
+        } else {
+          tile.setState(TileState.ERROR);
+        }
+      });
+      xhr.addEventListener('error', function() {
+        tile.setState(TileState.ERROR);
+      });
+      xhr.open('GET', src);
+      xhr.send();
+    };
+
     const ViQiTileClass = ViQiTile.bind(null, tileGrid);
 
     super({
@@ -244,12 +319,14 @@ class ViQi extends TileImage {
       tileClass: ViQiTileClass,
       tileGrid: tileGrid,
       tileUrlFunction: tileUrlFunction,
-      opt_key: options.opt_key,
+      tileLoadFunction: tileLoadFunction,
+      key: options.key,
       transition: options.transition
     });
 
     this.resolutions = resolutions;
     this.scales = scales;
+    this.render_options = options.render_options;
 
     this.myCreateFromTemplate = createFromTemplate;
     this.getBQCoordinate = function(tileCoord) {
@@ -259,16 +336,25 @@ class ViQi extends TileImage {
       const y = -tileCoord[2] - 1;
       return [z, x, y];
     };
+    this.getBQTileSize = function(tileCoord) {
+      const z = num_resolutions - (tileCoord[0] + 1);
+      const x = tileCoord[1] * viqi_tileSize;
+      const y = (-tileCoord[2] - 1) * viqi_tileSize;
+      const sz = sizes[z];
+      const w = Math.min(viqi_tileSize, sz[0] - x);
+      const h = Math.min(viqi_tileSize, sz[1] - y);
+      return [w, h];
+    };
   }
 
   setUrl(url) {
     const urls = expandUrl(url);
     const tileUrlFunction = createFromTileUrlFunctions(urls.map(this.myCreateFromTemplate));
-    this.setTileUrlFunction(tileUrlFunction, this.opt_key);
+    this.setTileUrlFunction(tileUrlFunction, this.key);
   }
 
-  setOptKey(opt_key) {
-    this.opt_key = opt_key;
+  setKey(key) {
+    this.key = key;
   }
 
   argmin(a) {
@@ -299,6 +385,12 @@ class ViQi extends TileImage {
 
   getScaleReal(res) {
     return 1.0 / res;
+  }
+
+  clearRenderCache() {
+    this.tileCache.forEach(function(tile) {
+      tile.clearRenderCache();
+    }, this);
   }
 
 }

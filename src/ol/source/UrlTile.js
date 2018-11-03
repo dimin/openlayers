@@ -24,6 +24,7 @@ import {getKeyZXY} from '../tilecoord.js';
  * @property {Array<string>} [urls]
  * @property {boolean} [wrapX=true]
  * @property {number} [transition]
+ * @property {string} [key]
  */
 
 
@@ -49,7 +50,8 @@ class UrlTile extends TileSource {
       tileGrid: options.tileGrid,
       tilePixelRatio: options.tilePixelRatio,
       wrapX: options.wrapX,
-      transition: options.transition
+      transition: options.transition,
+      key: options.key
     });
 
     /**
@@ -64,7 +66,6 @@ class UrlTile extends TileSource {
      */
     this.tileUrlFunction = this.fixedTileUrlFunction ?
       this.fixedTileUrlFunction.bind(this) : nullTileUrlFunction;
-    this.key_ = options.opt_key || this.key_;
 
     /**
      * @protected
@@ -78,7 +79,7 @@ class UrlTile extends TileSource {
       this.setUrl(options.url);
     }
     if (options.tileUrlFunction) {
-      this.setTileUrlFunction(options.tileUrlFunction, options.opt_key);
+      this.setTileUrlFunction(options.tileUrlFunction, this.key_);
     }
 
     /**
@@ -156,14 +157,14 @@ class UrlTile extends TileSource {
   /**
    * Set the tile URL function of the source.
    * @param {import("../Tile.js").UrlFunction} tileUrlFunction Tile URL function.
-   * @param {string=} opt_key Optional new tile key for the source.
+   * @param {string=} key Optional new tile key for the source.
    * @api
    */
-  setTileUrlFunction(tileUrlFunction, opt_key) {
+  setTileUrlFunction(tileUrlFunction, key) {
     this.tileUrlFunction = tileUrlFunction;
     this.tileCache.pruneExceptNewestZ();
-    if (typeof opt_key !== 'undefined') {
-      this.setKey(opt_key);
+    if (typeof key !== 'undefined') {
+      this.setKey(key);
     } else {
       this.changed();
     }
