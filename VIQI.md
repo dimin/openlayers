@@ -105,6 +105,7 @@ rollup --config config/rollup.js
 for debug build:
 rollup --config config/rollup.debug.js
 
-final production minified build, due to strange fail in production rollup:
-uglifyjs build/ol-debug.js --compress --mangle -o build/ol-production.js
+final production minified build, due to strange fail in production rollup (--compress breaks the code):
+#uglifyjs build/ol-debug.js --compress --mangle -o build/ol-production.js
+uglifyjs build/ol-debug.js --mangle -o build/ol-production.js
 
