@@ -99,7 +99,7 @@ copy README.md build\ol
 node tasks/generate-index
 cleancss --source-map src/ol/ol.css -o build/ol.css
 
-for production build:
+for production build, does not work properly, see final production:
 rollup --config config/rollup.js
 
 for debug build:

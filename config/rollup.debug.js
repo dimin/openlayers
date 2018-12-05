@@ -9,7 +9,7 @@ import buble from 'rollup-plugin-buble';
 export default {
   input: 'build/index.js',
   output: [
-    {file: 'build/ol-debug.js', format: 'iife', sourcemap: true}
+    {file: 'build/ol-debug.js', format: 'iife', sourcemap: true, name: 'ol'}
   ],
   plugins: [
     noderesolve(),
