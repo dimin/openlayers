@@ -61,24 +61,21 @@ export class ViQiTile extends ImageTile {
     }
     let image = super.getImage();
     if (this.state == TileState.LOADED) {
-      //const tileSize = this.tileSize_;
-      const tileSize = this.getBQTileSize(this.tileCoord);
+      let tileSize = [this.tileSize_[0], this.tileSize_[1]];
       //if (image.width == tileSize[0] && image.height == tileSize[1]) {
       //  this.viqiImage_ = image;
       //  return image;
       //} else {
       const context = createCanvasContext2D(this.tileSize_[0], this.tileSize_[1]);
-      if (this.image_data) {// && !this.raw_data && !this.buffer) {
+      if (!this.raw_data && !this.buffer) {
         // not receiving RAW data buffer but an image instead
         // used for 8 bit cases, need to add proper enhancement here
-        context.drawImage(this.image_data, 0, 0);
+        tileSize = [image.naturalWidth, image.naturalHeight];
+        context.drawImage(image, 0, 0);
         this.raw_data = context.getImageData(0, 0, tileSize[0], tileSize[1]).data;
         this.buffer = this.render_options.processBuffer(this.raw_data, tileSize);
-        this.image_data = undefined;
-      }
-
-      if (this.raw_data && !this.buffer) {
-        this.buffer = this.render_options.processBuffer(this.raw_data, tileSize);
+      } else if (this.raw_data && !this.buffer) {
+        this.buffer = this.render_options.processBuffer(this.raw_data); //, tileSize);
         if (!this.buffer) {
           return image;
         }
@@ -264,49 +261,33 @@ class ViQi extends TileImage {
 
     const tileUrlFunction = createFromTileUrlFunctions(urls.map(createFromTemplate));
 
-    const getBQTileSize = function(tileCoord) {
-      const z = num_resolutions - (tileCoord[0] + 1);
-      const x = tileCoord[1] * viqi_tileSize;
-      const y = (-tileCoord[2] - 1) * viqi_tileSize;
-      const sz = sizes[z];
-      const w = Math.min(viqi_tileSize, sz[0] - x);
-      const h = Math.min(viqi_tileSize, sz[1] - y);
-      return [w, h];
+    let tileLoadFunction = function defaultTileLoadFunction(tile, src) {
+      tile.render_options = options.render_options;
+      tile.getImage().src = src;
     };
 
-    const tileLoadFunction = function(tile, src) {
-      const xhr = new XMLHttpRequest();
-      if (options.render_options.use_raw_buffer === true) {
+    if (options.render_options.use_raw_buffer === true) {
+      tileLoadFunction = function(tile, src) {
+        const xhr = new XMLHttpRequest();
         xhr.responseType = 'arraybuffer';
-      } else {
-        xhr.responseType = 'blob';
-      }
-      xhr.addEventListener('loadend', function(evt) {
-        const data = this.response;
-        if (data !== undefined) {
-          if (options.render_options.use_raw_buffer === true) {
+        xhr.addEventListener('loadend', function(evt) {
+          const data = this.response;
+          if (data !== undefined) {
             tile.raw_data = data;
+            tile.render_options = options.render_options;
+            tile.setState(TileState.LOADED);
+            tile.getImage();
           } else {
-            tile.image_data = new Image();
-            tile.image_data.src = URL.createObjectURL(data);
-            //tile.getImage().src = URL.createObjectURL(data);
+            tile.setState(TileState.ERROR);
           }
-
-          tile.render_options = options.render_options;
-          tile.getBQTileSize = getBQTileSize;
-
-          tile.setState(TileState.LOADED);
-          tile.getImage();
-        } else {
+        });
+        xhr.addEventListener('error', function() {
           tile.setState(TileState.ERROR);
-        }
-      });
-      xhr.addEventListener('error', function() {
-        tile.setState(TileState.ERROR);
-      });
-      xhr.open('GET', src);
-      xhr.send();
-    };
+        });
+        xhr.open('GET', src);
+        xhr.send();
+      };
+    }
 
     const ViQiTileClass = ViQiTile.bind(null, tileGrid);
 
