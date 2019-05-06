@@ -67,19 +67,23 @@ export class ViQiTile extends ImageTile {
       //  return image;
       //} else {
       const context = createCanvasContext2D(this.tileSize_[0], this.tileSize_[1]);
-      if (!this.raw_data && !this.buffer) {
-        // not receiving RAW data buffer but an image instead
-        // used for 8 bit cases, need to add proper enhancement here
-        tileSize = [image.naturalWidth, image.naturalHeight];
-        context.drawImage(image, 0, 0);
-        this.raw_data = context.getImageData(0, 0, tileSize[0], tileSize[1]).data;
-        this.buffer = this.render_options.processBuffer(this.raw_data, tileSize);
-      } else if (this.raw_data && !this.buffer) {
-        this.buffer = this.render_options.processBuffer(this.raw_data); //, tileSize);
-        if (!this.buffer) {
-          return image;
+      try {
+        if (!this.raw_data && !this.buffer) {
+          // not receiving RAW data buffer but an image instead
+          // used for 8 bit cases, need to add proper enhancement here
+          tileSize = [image.naturalWidth, image.naturalHeight];
+          context.drawImage(image, 0, 0);
+          this.raw_data = context.getImageData(0, 0, tileSize[0], tileSize[1]).data;
+          this.buffer = this.render_options.processBuffer(this.raw_data, tileSize);
+        } else if (this.raw_data && !this.buffer) {
+          this.buffer = this.render_options.processBuffer(this.raw_data); //, tileSize);
+          if (!this.buffer) {
+            return image;
+          }
+          this.raw_data = undefined;
         }
-        this.raw_data = undefined;
+      } catch(err) {
+        return context.canvas;
       }
 
       tileSize[0] = this.buffer.width;
